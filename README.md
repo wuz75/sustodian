@@ -1,3 +1,5 @@
+![Sustodian](https://github.com/wuz75/sustodian/blob/main/sus.png)
+
 # sustodian
 when your high throughput codes just aren't (slurm edition)
 

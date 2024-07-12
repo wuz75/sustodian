@@ -8,7 +8,8 @@ def execute_command(command):
     if result.returncode != 0:
         raise Exception(f"Command failed: {command}\n{result.stderr}")
     return result.stdout.strip()
-
+squeue_output = execute_command(f"squeue -u {os.getenv('USER')}")
+print(squeue_output)
 # Get job ID from the user
 jobid = input("Enter job ID: ")
 

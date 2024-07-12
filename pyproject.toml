@@ -20,8 +20,6 @@ classifiers = [
 dependencies = [
     # Add dependencies here, e.g.,
      "numpy",
-     "pandas",
-     "fireworks",
 ]
 
 [project.urls]

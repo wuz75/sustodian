@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sustodian"
+version = "0.1.0"
+description = "A quality of life improvement for high throughput computing if you use Slurm, VASP, and Fireworks"
+readme = "README.md"
+requires-python = ">=3.6"
+license = {text = "MIT"}
+authors = [
+    {name = "wuz75", email = "waynezhao@berkeley.edu"},
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    # Add dependencies here, e.g.,
+     "numpy",
+     "pandas",
+     "fireworks",
+]
+
+[project.urls]
+Homepage = "https://github.com/wuz75/sustodian"
+

@@ -1,5 +1,5 @@
 """sustodian is a library of computational materials science workflows."""
 
 
-from sustodian import FindMyFW
-from sustodian import CheckIncar
+from sustodian.FindMyFW import get_fwid, execute_command
+import sustodian.CheckIncar

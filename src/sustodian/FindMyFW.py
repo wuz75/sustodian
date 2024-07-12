@@ -69,5 +69,5 @@ def get_fwid(jobid):
     else:
         print(f"FW.json not found in {largest_dir}")
         
-        return fw_id
+    return fw_id
 

@@ -13,7 +13,7 @@ def execute_command(command):
 # Get job ID from the user
 #jobid = input("Enter job ID: ")
 
-def get_fwid(job_id):
+def get_fwid(jobid):
 
     # Get job information and save to a temporary file
     job_info = execute_command(f"scontrol show jobid {jobid}")

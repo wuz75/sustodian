@@ -3,17 +3,24 @@ import subprocess
 import json
 
 # Function to execute shell commands and return the output
-def execute_command(command):
-    result = subprocess.run(command, shell=True, capture_output=True, text=True)
-    if result.returncode != 0:
-        raise Exception(f"Command failed: {command}\n{result.stderr}")
-    return result.stdout.strip()
-#squeue_output = execute_command(f"squeue -u {os.getenv('USER')}")
-#print(squeue_output)
-# Get job ID from the user
-#jobid = input("Enter job ID: ")
 
-def get_fwid(jobid):
+def execute_command(command):
+    try:
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise Exception(f"Command failed: {command}\n{result.stderr}")
+        return result.stdout.strip()
+    except Exception as e:
+        print(e)
+        ssh_login()
+        return None
+
+def ssh_login():
+    hostname = input("Enter the hostname without your username: ")
+    username = input("Enter the username: ")
+    os.system(f"ssh {username}@{hostname}")
+
+def get_fwid(job_id):
 
     # Get job information and save to a temporary file
     job_info = execute_command(f"scontrol show jobid {jobid}")
@@ -69,5 +76,5 @@ def get_fwid(jobid):
     else:
         print(f"FW.json not found in {largest_dir}")
         
-    return fw_id
+        return fw_id
 

@@ -20,6 +20,8 @@ classifiers = [
 dependencies = [
     # Add dependencies here, e.g.,
      "numpy",
+     "paramiko",
+     "getpass",
 ]
 
 [project.urls]

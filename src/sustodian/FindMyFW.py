@@ -1,6 +1,8 @@
 import os
 import subprocess
 import json
+import paramiko
+import getpass
 
 # Function to execute shell commands and return the output
 
@@ -12,13 +14,37 @@ def execute_command(command):
         return result.stdout.strip()
     except Exception as e:
         print(e)
-        ssh_login()
+        ssh_login(command)
         return None
 
-def ssh_login():
+def ssh_login(command):
     hostname = input("Enter the hostname without your username: ")
     username = input("Enter the username: ")
-    os.system(f"ssh {username}@{hostname}")
+    password = getpass.getpass('Enter password: ')
+
+    #os.system(f"ssh {username}@{hostname}")
+
+    # Create an SSH client
+    ssh = paramiko.SSHClient()
+
+    # Automatically add the server's host key (for the first time)
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        # Connect to the server
+        ssh.connect(hostname, username=username, password=password)
+
+        # Run the 'scontrol' command
+        stdin, stdout, stderr = ssh.exec_command(command)
+
+        # Print the output of the command
+        print(stdout.read().decode())
+        print(stderr.read().decode())
+
+    finally:
+        # Close the SSH connection
+        ssh.close()
+
 
 def get_fwid(jobid):
 

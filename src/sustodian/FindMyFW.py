@@ -35,11 +35,17 @@ def ssh_login(command):
         ssh.connect(hostname, username=username, password=password)
 
         # Run the 'scontrol' command
-        result = ssh.exec_command(command)
+        stdin, stdout, stderr = ssh.exec_command(command)
+        # Capture the output and errors
+        output = stdout.read().decode('utf-8')
+        errors = stderr.read().decode('utf-8')
+        if errors:
+            raise Exception(f"Command failed: {command}\n{errors}")
+        return output.strip()
 
         # Print the output of the command
-        print(stdout.read().decode())
-        print(stderr.read().decode())
+        return result.stdout.strip()
+        
 
     finally:
         # Close the SSH connection

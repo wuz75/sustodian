@@ -35,7 +35,7 @@ def ssh_login(command):
         ssh.connect(hostname, username=username, password=password)
 
         # Run the 'scontrol' command
-        stdin, stdout, stderr = ssh.exec_command(command)
+        result = ssh.exec_command(command)
 
         # Print the output of the command
         print(stdout.read().decode())

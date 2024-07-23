@@ -1,188 +1,96 @@
+#!/bin/bash
+
+# Display current user jobs
 squeue -u $USER
 clean_dir_later=$(pwd)
 
+# Prompt for job ID or "all"
 read -p "Type 'all' or Enter a job ID: " jobid
 
-# Check if jobid is a number
-if [[ "$jobid" =~ ^[0-9]+$ ]]; then
-    echo $jobid
-    scontrol show jobid $jobid > temp_$jobid.txt
-    stdout_dir=$(grep "StdOut=" temp_$jobid.txt | cut -d'=' -f2)
-    
-    
-    rm temp_$jobid.txt
+# Function to process a single job ID
+process_job_id() {
+    local job_id=$1
+    echo "Processing job ID: $job_id"
+    scontrol show jobid $job_id > temp_$job_id.txt
+    stdout_dir=$(grep "StdOut=" temp_$job_id.txt | cut -d'=' -f2)
+    rm temp_$job_id.txt
+
     # Check if StdOut path was found
     if [[ -z "$stdout_dir" ]]; then
-      echo "StdOut path not found in job information"
-      exit 1
+        echo "StdOut path not found in job information"
+        return 1
     fi
     base_dir=$(dirname "$stdout_dir")
 
     # Change directory to the extracted base directory
-
-    cd "$base_dir" || { echo "Failed to change directory to $base_dir"; exit 1; }
-
-    # Print the current directory to confirm
+    cd "$base_dir" || { echo "Failed to change directory to $base_dir"; return 1; }
     echo "Changed directory to: $(pwd)"
-    largest_dir=$(find $(pwd) -type d -name "launcher_*" | grep -Eo '[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{6}' | sort -r | head -n 1)
-    cd "launcher_$largest_dir" || { echo "Failed to change directory to $base_dir $largest_dir";
 
-        printf "%s\n" "-----------------------------------------------------------------------------"
-        printf "%s\n" "|                                                                             |"
-        printf "%s\n" "|           W    W    AA    RRRRR   N    N  II  N    N   GGGG   !!!           |"
-        printf "%s\n" "|           W    W   A  A   R    R  NN   N  II  NN   N  G    G  !!!           |"
-        printf "%s\n" "|           W    W  A    A  R    R  N N  N  II  N N  N  G       !!!           |"
-        printf "%s\n" "|           W WW W  AAAAAA  RRRRR   N  N N  II  N  N N  G  GGG   !            |"
-        printf "%s\n" "|           WW  WW  A    A  R   R   N   NN  II  N   NN  G    G                |"
-        printf "%s\n" "|           W    W  A    A  R    R  N    N  II  N    N   GGGG   !!!           |"
-        printf "%s\n" "|                                                                             |"
-        printf "%s\n" "|     This slurm job probably doesn't have a FW_ID associated with it. It's   |"
-        printf "%s\n" "|     probably safe to just scancel this job so you don't waste hours.        |"
-        printf "%s\n" "|     You could also try going to the first directory that was printed        |"
-        printf "%s\n" "|     out to maybe figure out what happened. Best of luck                     |"
-        printf "%s\n" "|     I HOPE YOU KNOW WHAT YOU ARE DOING!                                     |"
-        printf "%s\n" "|                                                                             |"
-        printf "%s\n" "-----------------------------------------------------------------------------"
-        exit 1;
+    largest_dir=$(find $(pwd) -type d -name "launcher_*" | grep -Eo '[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{6}' | sort -r | head -n 1)
+    if [[ -z "$largest_dir" ]]; then
+        echo "No launcher_* directory found"
+        return 1
+    fi
+
+    cd "launcher_$largest_dir" || {
+        echo "Failed to change directory to $base_dir/launcher_$largest_dir"
+        warning_message
+        return 1
     }
 
     echo "Changed directory to: $(pwd)"
     json_file="$(pwd)/FW.json"
 
-    # Check if the JSON file exists
     if [ -f "$json_file" ]; then
-        # Extract spec.MPID and fw_id from FW.json
         spec_mpid=$(jq -r '.spec.MPID' "$json_file")
         fw_id=$(jq -r '.fw_id' "$json_file")
-
-        # Output the extracted values
         echo "spec.MPID: $spec_mpid"
         echo "fw_id: $fw_id"
     else
         echo "FW.json not found in launcher_$largest_dir"
-        printf "%s\n" "-----------------------------------------------------------------------------"
-        printf "%s\n" "|                                                                             |"
-        printf "%s\n" "|           W    W    AA    RRRRR   N    N  II  N    N   GGGG   !!!           |"
-        printf "%s\n" "|           W    W   A  A   R    R  NN   N  II  NN   N  G    G  !!!           |"
-        printf "%s\n" "|           W    W  A    A  R    R  N N  N  II  N N  N  G       !!!           |"
-        printf "%s\n" "|           W WW W  AAAAAA  RRRRR   N  N N  II  N  N N  G  GGG   !            |"
-        printf "%s\n" "|           WW  WW  A    A  R   R   N   NN  II  N   NN  G    G                |"
-        printf "%s\n" "|           W    W  A    A  R    R  N    N  II  N    N   GGGG   !!!           |"
-        printf "%s\n" "|                                                                             |"
-        printf "%s\n" "|     This slurm job probably doesn't have an FW_ID associated with it. This  |"
-        printf "%s\n" "|     means that the job either hasn't started running yet or something       |"
-        printf "%s\n" "|     else went wrong. You can probably check the directory printed           |"
-        printf "%s\n" "|     above to maybe figure out what happened. Best of luck                   |"
-        printf "%s\n" "|     I HOPE YOU KNOW WHAT YOU ARE DOING!                                     |"
-        printf "%s\n" "|                                                                             |"
-        printf "%s\n" "-----------------------------------------------------------------------------"
+        warning_message
     fi
+}
+
+# Function to display warning message
+warning_message() {
+    printf "%s\n" "-----------------------------------------------------------------------------"
+    printf "%s\n" "|                                                                             |"
+    printf "%s\n" "|           W    W    AA    RRRRR   N    N  II  N    N   GGGG   !!!           |"
+    printf "%s\n" "|           W    W   A  A   R    R  NN   N  II  NN   N  G    G  !!!           |"
+    printf "%s\n" "|           W    W  A    A  R    R  N N  N  II  N N  N  G       !!!           |"
+    printf "%s\n" "|           W WW W  AAAAAA  RRRRR   N  N N  II  N  N N  G  GGG   !            |"
+    printf "%s\n" "|           WW  WW  A    A  R   R   N   NN  II  N   NN  G    G                |"
+    printf "%s\n" "|           W    W  A    A  R    R  N    N  II  N    N   GGGG   !!!           |"
+    printf "%s\n" "|                                                                             |"
+    printf "%s\n" "|     This slurm job probably doesn't have a FW_ID associated with it.        |"
+    printf "%s\n" "|     You can probably check the directory printed above to figure out        |"
+    printf "%s\n" "|     what happened. Best of luck!                                            |"
+    printf "%s\n" "|     I HOPE YOU KNOW WHAT YOU ARE DOING!                                     |"
+    printf "%s\n" "|                                                                             |"
+    printf "%s\n" "-----------------------------------------------------------------------------"
+}
+
+# Main logic
+if [[ "$jobid" =~ ^[0-9]+$ ]]; then
+    process_job_id $jobid
 else
     echo "Reading all job IDs..."
     squeue -u $USER > job_list.txt
 
-    # Read job IDs from job_list.txt
-    job_list="job_list.txt"
-
-    # Check if the job list file exists
-    if [[ ! -f "$job_list" ]]; then
+    if [[ ! -f "job_list.txt" ]]; then
         echo "Job list file not found!"
         exit 1
     fi
 
-    # Read job IDs from the file and process each one
     while read -r line; do
-        # Skip the header line
         if [[ "$line" =~ ^[[:space:]]*JOBID ]]; then
             continue
         fi
-
-        # Extract job ID from the line
         job_id=$(echo $line | awk '{print $1}')
+        [[ -n "$job_id" ]] && process_job_id $job_id
+    done < job_list.txt
 
-        # Skip empty lines
-        if [[ -z "$job_id" ]]; then
-            continue
-        fi
-
-        # Run the remainder of the code for each job ID
-        echo "Processing job ID: $job_id"
-        scontrol show jobid $job_id > temp_$job_id.txt
-
-        # Place your remaining code here, for example:
-        # Your remainder code
-        # do_something_with temp_$job_id.txt
-
-        # Extract the StdOut directory from the temporary file
-        stdout_dir=$(grep "StdOut=" temp_$job_id.txt | cut -d'=' -f2)
-        rm temp_$job_id.txt
-        # Check if StdOut path was found
-        if [[ -z "$stdout_dir" ]]; then
-          echo "StdOut path not found in job information"
-          exit 1
-        fi
-        base_dir=$(dirname "$stdout_dir")
-
-        # Change directory to the extracted base directory
-
-        cd "$base_dir" || { echo "Failed to change directory to $base_dir"; exit 1; }
-
-        # Print the current directory to confirm
-        echo "Changed directory to: $(pwd)"
-        largest_dir=$(find $(pwd) -type d -name "launcher_*" | grep -Eo '[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{6}' | sort -r | head -n 1)
-        cd "launcher_$largest_dir" || { echo "Failed to change directory to $base_dir $largest_dir";
-            printf "%s\n" "-----------------------------------------------------------------------------"
-            printf "%s\n" "|                                                                             |"
-            printf "%s\n" "|           W    W    AA    RRRRR   N    N  II  N    N   GGGG   !!!           |"
-            printf "%s\n" "|           W    W   A  A   R    R  NN   N  II  NN   N  G    G  !!!           |"
-            printf "%s\n" "|           W    W  A    A  R    R  N N  N  II  N N  N  G       !!!           |"
-            printf "%s\n" "|           W WW W  AAAAAA  RRRRR   N  N N  II  N  N N  G  GGG   !            |"
-            printf "%s\n" "|           WW  WW  A    A  R   R   N   NN  II  N   NN  G    G                |"
-            printf "%s\n" "|           W    W  A    A  R    R  N    N  II  N    N   GGGG   !!!           |"
-            printf "%s\n" "|                                                                             |"
-            printf "%s\n" "|     This slurm job probably doesn't have a FW_ID associated with it. It's   |"
-            printf "%s\n" "|     probably safe to just scancel this job so you don't waste hours.        |"
-            printf "%s\n" "|     You could also try going to the first directory that was printed        |"
-            printf "%s\n" "|     out to maybe figure out what happened. Best of luck                     |"
-            printf "%s\n" "|     I HOPE YOU KNOW WHAT YOU ARE DOING!                                     |"
-            printf "%s\n" "|                                                                             |"
-            printf "%s\n" "-----------------------------------------------------------------------------"
-            exit 1;
-        }
-
-        echo "Changed directory to: $(pwd)"
-        json_file="$(pwd)/FW.json"
-
-        # Check if the JSON file exists
-        if [ -f "$json_file" ]; then
-            # Extract spec.MPID and fw_id from FW.json
-            spec_mpid=$(jq -r '.spec.MPID' "$json_file")
-            fw_id=$(jq -r '.fw_id' "$json_file")
-
-            # Output the extracted values
-            echo "spec.MPID: $spec_mpid"
-            echo "fw_id: $fw_id"
-        else
-            echo "FW.json not found in $largest_dir"
-            printf "%s\n" "-----------------------------------------------------------------------------"
-            printf "%s\n" "|                                                                             |"
-            printf "%s\n" "|           W    W    AA    RRRRR   N    N  II  N    N   GGGG   !!!           |"
-            printf "%s\n" "|           W    W   A  A   R    R  NN   N  II  NN   N  G    G  !!!           |"
-            printf "%s\n" "|           W    W  A    A  R    R  N N  N  II  N N  N  G       !!!           |"
-            printf "%s\n" "|           W WW W  AAAAAA  RRRRR   N  N N  II  N  N N  G  GGG   !            |"
-            printf "%s\n" "|           WW  WW  A    A  R   R   N   NN  II  N   NN  G    G                |"
-            printf "%s\n" "|           W    W  A    A  R    R  N    N  II  N    N   GGGG   !!!           |"
-            printf "%s\n" "|                                                                             |"
-            printf "%s\n" "|     This slurm job probably doesn't have an FW_ID associated with it. This  |"
-            printf "%s\n" "|     means that the job either hasn't started running yet or something       |"
-            printf "%s\n" "|     else went wrong. You can probably check the directory printed           |"
-            printf "%s\n" "|     above to maybe figure out what happened. Best of luck                   |"
-            printf "%s\n" "|     I HOPE YOU KNOW WHAT YOU ARE DOING!                                     |"
-            printf "%s\n" "|                                                                             |"
-            printf "%s\n" "-----------------------------------------------------------------------------"
-        fi
-    done < "$job_list"
-    cd $clean_dir_later
-    rm job_list.txt
 fi
-
+rm job_list.txt
+cd $clean_dir_later

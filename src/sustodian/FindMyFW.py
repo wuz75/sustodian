@@ -44,12 +44,13 @@ def ssh_login(command):
         return output.strip()
 
         # Print the output of the command
-        return result.stdout.strip()
         
-
+        
     finally:
         # Close the SSH connection
         ssh.close()
+        
+    
 
 
 def get_fwid(jobid):

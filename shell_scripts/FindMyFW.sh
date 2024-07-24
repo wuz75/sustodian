@@ -3,12 +3,12 @@ RED='\033[0;31m'
 CYAN='\033[0;36m'
 ORANGE='\033[0;33m'
 NC='\033[0m' # No Color
-squeue -u $USER
+#squeue -u $USER
+squeue --states=R -u $USER
 clean_dir_later=$(pwd)
 
-read -p "Type 'all' or Enter a job ID: " jobid
+read -p "Type [all] or Enter a job ID: " jobid
 
-#########work zone###########
 dir_getter() {
     if [[ "$jobid" =~ ^[0-9]+$ ]]; then
         echo "Processing job ID: $jobid"
@@ -23,13 +23,12 @@ dir_getter() {
         fi
         
         base_dir=$(dirname "$stdout_dir")
-        if ! dir_rapidfire; then
-            dir_singleshot
-        fi
+        dir_rapidfire;
+
 
     else
         echo -e "${CYAN}Reading all job IDs...${NC}"
-        squeue -u $USER > job_list.txt
+        squeue --states=R -u $USER > job_list.txt
 
         # Check if the job list file exists
         if [[ ! -f "job_list.txt" ]]; then
@@ -45,12 +44,6 @@ dir_getter() {
 
             # Extract job ID from the line
             job_id=$(echo $line | awk '{print $1}')
-            job_time=$(echo $line | awk '{print $6}')
-
-            # Skip empty lines and lines where the job time is 0:00
-            if [[ -z "$job_id" || "$job_time" == "0:00" ]]; then
-                continue
-            fi
 
             echo -e "${ORANGE}Processing job ID: ${CYAN}$job_id${NC}"
             scontrol show jobid $job_id > temp_$job_id.txt
@@ -66,10 +59,10 @@ dir_getter() {
             fi
 
             base_dir=$(dirname "$stdout_dir")
-            
-            if ! dir_rapidfire; then
-                dir_singleshot
-            fi
+            dir_rapidfire;
+#            if ! dir_rapidfire; then
+#                dir_singleshot
+#            fi
 
         done < "job_list.txt"
 
@@ -79,16 +72,20 @@ dir_getter() {
 }
 
 dir_singleshot() {
-    cd "$base_dir" || { echo -e "${RED}Failed to change directory to ${ORANGE}$base_dir${NC}"; exit 1; }
-    echo "Changed directory to: $(pwd)"
+#    cd "$base_dir" || { echo -e "${RED}Failed to change directory to ${ORANGE}$base_dir${NC}"; exit 1; }
+#    echo "Changed directory to: $(pwd)"
     json_file="$(pwd)/FW.json"
 
-    if [ -f "$json_file" ]; then
+ 
+ if [ -f "$json_file" ]; then
         spec_mpid=$(jq -r '.spec.MPID' "$json_file")
         fw_id=$(jq -r '.fw_id' "$json_file")
 
-        echo "spec.MPID: $spec_mpid"
-        echo "fw_id: $fw_id"
+#        echo "spec.MPID: $spec_mpid"
+#        echo "fw_id: $fw_id"
+        
+        
+        
     else
         echo "FW.json not found in $base_dir"
         printf "%s\n" "-----------------------------------------------------------------------------"
@@ -111,10 +108,10 @@ dir_singleshot() {
 }
 
 dir_rapidfire() {
-    echo $base_dir
+#    echo $base_dir
     cd "$base_dir" || { echo -e "${RED}Failed to change directory to ${CYAN}$base_dir${NC}"; exit 1; }
 
-    echo "Changed directory to: $(pwd)"
+#    echo "Changed directory to: $(pwd)"
     largest_dir=$(find "$(pwd)" -type d -name "launcher_*" | grep -Eo '[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{6}' | sort -r | head -n 1)
 
     if [[ -z "$largest_dir" ]]; then
@@ -122,28 +119,11 @@ dir_rapidfire() {
         return 1
     fi
 
-    cd "launcher_$largest_dir" || { 
-        echo "Failed to change directory to $base_dir/launcher_$largest_dir"
-        printf "%s\n" "-----------------------------------------------------------------------------"
-        printf "%s\n" "|                                                                             |"
-        printf "%s\n" "|           W    W    AA    RRRRR   N    N  II  N    N   GGGG   !!!           |"
-        printf "%s\n" "|           W    W   A  A   R    R  NN   N  II  NN   N  G    G  !!!           |"
-        printf "%s\n" "|           W    W  A    A  R    R  N N  N  II  N N  N  G       !!!           |"
-        printf "%s\n" "|           W WW W  AAAAAA  RRRRR   N  N N  II  N  N N  G  GGG   !            |"
-        printf "%s\n" "|           WW  WW  A    A  R   R   N   NN  II  N   NN  G    G                |"
-        printf "%s\n" "|           W    W  A    A  R    R  N    N  II  N    N   GGGG   !!!           |"
-        printf "%s\n" "|                                                                             |"
-        printf "%s\n" "|     This slurm job probably doesn't have a FW_ID associated with it. It's   |"
-        printf "%s\n" "|     probably safe to just scancel this job so you don't waste hours.        |"
-        printf "%s\n" "|     You could also try going to the first directory that was printed        |"
-        printf "%s\n" "|     out to maybe figure out what happened. Best of luck                     |"
-        printf "%s\n" "|     I HOPE YOU KNOW WHAT YOU ARE DOING!                                     |"
-        printf "%s\n" "|                                                                             |"
-        printf "%s\n" "-----------------------------------------------------------------------------"
-        exit 1
+    cd "launcher_$largest_dir" || { dir_singleshot
+        echo -e "${ORANGE}perhaps you are using singleshot (consider using rapidfire) but alas I will still help${NC}"
     }
 
-    echo "Changed directory to: $(pwd)"
+    echo "You are currently in: $(pwd)"
     json_file="$(pwd)/FW.json"
 
     if [ -f "$json_file" ]; then
@@ -172,10 +152,5 @@ dir_rapidfire() {
         printf "%s\n" "-----------------------------------------------------------------------------"
     fi
 }
-
-##########work zone end#########
-
-# Attempt to get the base directory and perform dir_rapidfire. If it fails, perform dir_singleshot.
-
 
 dir_getter;

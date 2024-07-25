@@ -56,12 +56,10 @@ check_and_uncompress "$INCAR_FILE" INCAR_UNZIPPED
 check_and_uncompress "$CUSTODIAN_FILE" CUSTODIAN_UNZIPPED
 echo -e "\n\n"
 
-# Your additional script logic goes here...
-
 # Extract errors from custodian.json and store them in an array
 mapfile -t custodian_errors < <(jq -r '.[].corrections[].errors[]' custodian.json)
 
-# Function to extract and compare two INCAR files
+# Function to compare two INCAR files extracted from tar.gz files
 compare_incar_files() {
   FILE1=$1
   FILE2=$2
@@ -86,26 +84,51 @@ compare_incar_files() {
   fi
   
   echo -e "${RED}Lines unique to $FILE1 INCAR file:${NC}"
-  echo -e "${ORANGE}$(comm -23 <(sort "$EXTRACTED_INCAR1") <(sort "$EXTRACTED_INCAR2"))${NC}"
+  comm -23 <(sort "$EXTRACTED_INCAR1") <(sort "$EXTRACTED_INCAR2")
+  echo -e "\n"
   
   echo -e "${CYAN}Lines unique to $FILE2 INCAR file:${NC}"
-  echo -e "${ORANGE}$(comm -13 <(sort "$EXTRACTED_INCAR1") <(sort "$EXTRACTED_INCAR2"))${NC}"
+  comm -13 <(sort "$EXTRACTED_INCAR1") <(sort "$EXTRACTED_INCAR2")
+  echo -e "\n"
   
   rm -rf "$TMP_DIR1" "$TMP_DIR2"
 }
 
-# Maintain a counter for errors
+# Function to compare an INCAR file from a tar.gz with the current INCAR file
+compare_incar_with_current() {
+  ERROR_FILE=$1
+  TMP_DIR=$(mktemp -d) || { echo "Error: Failed to create temporary directory."; exit 1; }
+  
+  tar -xzf "$ERROR_FILE" -C "$TMP_DIR" INCAR
+  EXTRACTED_INCAR="$TMP_DIR/INCAR"
+
+  if [ ! -f "$EXTRACTED_INCAR" ]; then
+    echo "Error: INCAR file not found in '$ERROR_FILE'."
+    rm -rf "$TMP_DIR"
+    exit 1
+  fi
+
+  echo -e "${RED}Lines unique to $ERROR_FILE INCAR file:${NC}"
+  comm -23 <(sort "$EXTRACTED_INCAR") <(sort "$INCAR_FILE")
+  echo -e "\n"
+  
+  echo -e "${CYAN}Lines unique to the Current INCAR file:${NC}"
+  comm -13 <(sort "$EXTRACTED_INCAR") <(sort "$INCAR_FILE")
+  echo -e "\n"
+  
+  rm -rf "$TMP_DIR"
+}
+
+# Main logic comparing error files and the current INCAR
+PREV_FILE=""
 ERROR_INDEX=0
 
-# Loop through the sorted error files and perform pairwise comparisons
-PREV_FILE=""
 for i in ${!ERROR_FILES[@]}; do
   ERROR_FILE=${ERROR_FILES[$i]}
   
-  if [[ -n "$PREV_FILE" ]] && [ ${#ERROR_FILES[@]} -gt 1 ]; then  # Secondary clause added to avoid pairwise comparisons if there's only one file
-    echo -e "${NC}Here's what changed between ${RED}$PREV_FILE${NC} and ${RED}$ERROR_FILE${NC}..."
+  if [[ -n "$PREV_FILE" ]] && [ ${#ERROR_FILES[@]} -gt 1 ]; then
+    echo -e "${NC}Here's what changed between ${RED}$PREV_FILE${NC} and ${CYAN}$ERROR_FILE${NC}..."
     
-    # Print the corresponding error if available
     if [[ ERROR_INDEX -lt ${#custodian_errors[@]} ]]; then
       echo -e "${CYAN}Custodian error in ${RED}$PREV_FILE${NC}: ${ORANGE}${custodian_errors[ERROR_INDEX]}${NC}"
       ERROR_INDEX=$((ERROR_INDEX + 1))
@@ -117,58 +140,26 @@ for i in ${!ERROR_FILES[@]}; do
   PREV_FILE="$ERROR_FILE"
 done
 
-# Compare the highest numbered error file with the current INCAR file
 if [ ${#ERROR_FILES[@]} -gt 1 ]; then
-    if [[ -n "$PREV_FILE" ]]; then
-      echo -e "${NC}Here's what changed between ${RED}$PREV_FILE${NC} and the current ${CYAN}INCAR file${NC}..."
+  if [[ -n "$PREV_FILE" ]]; then
+    echo -e "${NC}Here's what changed between ${RED}$PREV_FILE${NC} and the current ${CYAN}INCAR file${NC}..."
 
-      # Print the last error in the custodian errors array
-      LAST_ERROR_INDEX=$(( ${#custodian_errors[@]} - 1 ))
-      if [[ LAST_ERROR_INDEX -ge 0 ]]; then
-        echo -e "${CYAN}Custodian Error in ${RED}$PREV_FILE${NC}: ${ORANGE}${custodian_errors[LAST_ERROR_INDEX]}${NC}"
-      fi
-
-      TMP_DIR=$(mktemp -d) || { echo "Error: Failed to create temporary directory."; exit 1; }
-      tar -xzf "$PREV_FILE" -C "$TMP_DIR" INCAR
-      EXTRACTED_INCAR="$TMP_DIR/INCAR"
-
-      if [ ! -f "$EXTRACTED_INCAR" ]; then
-        echo "Error: INCAR file not found in '$PREV_FILE'."
-        rm -rf "$TMP_DIR"
-        exit 1
-      fi
-
-      echo -e "${RED}Lines unique to $PREV_FILE INCAR file:${NC}"
-      echo -e "${ORANGE}$(comm -13 <(sort "$INCAR_FILE") <(sort "$EXTRACTED_INCAR"))${NC}"
-
-      echo -e "${CYAN}Lines unique to the Current INCAR file:${NC}"
-      echo -e "${ORANGE}$(comm -23 <(sort "$INCAR_FILE") <(sort "$EXTRACTED_INCAR"))${NC}"
-      rm -rf "$TMP_DIR"
+    LAST_ERROR_INDEX=$(( ${#custodian_errors[@]} - 1 ))
+    if [[ LAST_ERROR_INDEX -ge 0 ]]; then
+      echo -e "${CYAN}Custodian Error in ${RED}$PREV_FILE${NC}: ${ORANGE}${custodian_errors[LAST_ERROR_INDEX]}${NC}"
     fi
-fi
 
-# Prevent the additional comparison only if there is more than one error file
-if [ ${#ERROR_FILES[@]} -eq 1 ]; then
-  FIRST_ERROR_FILE="${ERROR_FILES[0]}"
-  echo -e "${RED}Here's what changed between $FIRST_ERROR_FILE and the current INCAR file...${NC}"
-
-  TMP_DIR=$(mktemp -d) || { echo "Error: Failed to create temporary directory."; exit 1; }
-  tar -xzf "$FIRST_ERROR_FILE" -C "$TMP_DIR" INCAR
-  EXTRACTED_INCAR="$TMP_DIR/INCAR"
-
-  if [ ! -f "$EXTRACTED_INCAR" ]; then
-    echo "Error: INCAR file not found in '$FIRST_ERROR_FILE'."
-    rm -rf "$TMP_DIR"
-  else
-    echo -e "${RED}Lines unique to $FIRST_ERROR_FILE INCAR file:${NC}"
-    echo -e "${ORANGE}$(comm -13 <(sort "$INCAR_FILE") <(sort "$EXTRACTED_INCAR"))${NC}"
-
-    echo -e "${CYAN}Lines unique to the Current INCAR file:${NC}"
-    echo -e "${ORANGE}$(comm -23 <(sort "$INCAR_FILE") <(sort "$EXTRACTED_INCAR"))${NC}"
-    rm -rf "$TMP_DIR"
+    compare_incar_with_current "$PREV_FILE"
+    echo "--------------------------------------"
   fi
 fi
 
+# Always compare error.1.tar.gz with the current INCAR file at the end
+FIRST_ERROR_FILE="${ERROR_FILES[0]}"
+echo -e "${NC}Here's what changed between ${RED}$FIRST_ERROR_FILE ${NC}and the current ${CYAN}INCAR file...${NC}"
+compare_incar_with_current "$FIRST_ERROR_FILE"
+
+# Clean up uncompressed files if needed
 if [ "$INCAR_UNZIPPED" -eq 1 ]; then
   rm "$INCAR_FILE"
   echo "Deleted uncompressed '$INCAR_FILE' as '$INCAR_GZ_FILE' existed originally."
@@ -180,5 +171,4 @@ if [ "$CUSTODIAN_UNZIPPED" -eq 1 ]; then
 fi
 
 echo "All comparisons complete. Best of luck o7"
-
 echo -e "\n\n"

@@ -13,10 +13,12 @@ git clone this repo to any directory (it is quite slow so just be patient)
 
 ### Alias for PYTHON
 alias pysjob='python /your_installation_directory/sustodian/src/sustodian/FindMyFW.py'
+
 alias pycincar='python /your_installation_directory/sustodian/src/sustodian/CheckIncar.py'
 
 ### Alias for SHELL SCRIPTS
 alias sjob='/your_installation_directory/sustodian/shell_scripts/FindMyFW.sh'
+
 alias checkincar='/your_installation_directory/sustodian/shell_scripts/CheckIncar.sh'
 
 ## FindMyFW (for Slurm and Fireworks users)

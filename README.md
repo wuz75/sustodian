@@ -14,12 +14,12 @@ git clone this repo to any directory (it is quite slow so just be patient)
 ### Alias for PYTHON
 alias pysjob='python /your_installation_directory/sustodian/src/sustodian/FindMyFW.py'
 
-alias pycincar='python /your_installation_directory/sustodian/src/sustodian/CheckIncar.py'
+alias pycincar='python /your_installation_directory/sustodian/src/sustodian/CheckIncar.py ./INCAR'
 
 ### Alias for SHELL SCRIPTS
 alias sjob='/your_installation_directory/sustodian/shell_scripts/FindMyFW.sh'
 
-alias checkincar='/your_installation_directory/sustodian/shell_scripts/CheckIncar.sh'
+alias checkincar='/your_installation_directory/sustodian/shell_scripts/CheckIncar.sh ./INCAR'
 
 ## FindMyFW (for Slurm and Fireworks users)
 FindMyFW is for those who use a Slurm Job Scheduler and the Fireworks package. It helps you find the firework associated with any of your running jobs. It also helps find JobIDs that are empty (i.e not running any Fireworks).

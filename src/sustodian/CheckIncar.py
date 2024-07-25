@@ -37,36 +37,60 @@ def check_and_uncompress(file, gz_file, unzipped_var):
             sys.exit(1)
 
 def compare_incar_files(file1, file2):
-    with tempfile.TemporaryDirectory() as tmp_dir1, tempfile.TemporaryDirectory() as tmp_dir2:
-        subprocess.run(['tar', '-xzf', file1, '-C', tmp_dir1, 'INCAR'], check=True)
-        subprocess.run(['tar', '-xzf', file2, '-C', tmp_dir2, 'INCAR'], check=True)
+    if file1.endswith('.tar.gz') and file2.endswith('.tar.gz'):
+        with tempfile.TemporaryDirectory() as tmp_dir1, tempfile.TemporaryDirectory() as tmp_dir2:
+            subprocess.run(['tar', '-xzf', file1, '-C', tmp_dir1, 'INCAR'], check=True)
+            subprocess.run(['tar', '-xzf', file2, '-C', tmp_dir2, 'INCAR'], check=True)
 
-        extracted_incar1 = os.path.join(tmp_dir1, 'INCAR')
-        extracted_incar2 = os.path.join(tmp_dir2, 'INCAR')
+            extracted_incar1 = os.path.join(tmp_dir1, 'INCAR')
+            extracted_incar2 = os.path.join(tmp_dir2, 'INCAR')
 
-        if not os.path.exists(extracted_incar1):
-            echo_error(f"INCAR file not found in '{file1}'.")
-            return
-        if not os.path.exists(extracted_incar2):
-            echo_error(f"INCAR file not found in '{file2}'.")
-            return
+            if not os.path.exists(extracted_incar1):
+                echo_error(f"INCAR file not found in '{file1}'.")
+                return
+            if not os.path.exists(extracted_incar2):
+                echo_error(f"INCAR file not found in '{file2}'.")
+                return
 
-        with open(extracted_incar1, 'r') as f1, open(extracted_incar2, 'r') as f2:
-            lines1 = sorted(f1.readlines())
-            lines2 = sorted(f2.readlines())
+            with open(extracted_incar1, 'r') as f1, open(extracted_incar2, 'r') as f2:
+                lines1 = sorted(f1.readlines())
+                lines2 = sorted(f2.readlines())
+    else:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            if file1.endswith('.tar.gz'):
+                tar_file, incar_file = file1, file2
+            elif file2.endswith('.tar.gz'):
+                tar_file, incar_file = file2, file1
+            else:
+                echo_error(f"One file should be a .tar.gz file")
+                return
+            
+            subprocess.run(['tar', '-xzf', tar_file, '-C', tmp_dir, 'INCAR'], check=True)
+            extracted_incar = os.path.join(tmp_dir, 'INCAR')
 
-        unique_to_file1 = set(lines1) - set(lines2)
-        unique_to_file2 = set(lines2) - set(lines1)
+            if not os.path.exists(extracted_incar):
+                echo_error(f"INCAR file not found in '{tar_file}'.")
+                return
 
-        echo_info(f"Lines unique to {file1} INCAR file:")
-        for line in unique_to_file1:
-            echo_warning(line.strip())
-        echo("\n")
+            with open(extracted_incar, 'r') as f1, open(incar_file, 'r') as f2:
+                lines1 = sorted(f1.readlines())
+                lines2 = sorted(f2.readlines())
 
-        echo_info(f"Lines unique to {file2} INCAR file:")
-        for line in unique_to_file2:
-            echo_warning(line.strip())
-        echo("\n")
+    unique_to_file1 = set(lines1) - set(lines2)
+    unique_to_file2 = set(lines2) - set(lines1)
+
+    echo_info(f"Lines unique to {file1} INCAR file:")
+    for line in unique_to_file1:
+        echo_warning(line.strip())
+    echo("\n")
+
+    if file2=="./INCAR":
+        file2="Current"
+        
+    echo_info(f"Lines unique to {file2} INCAR file:")
+    for line in unique_to_file2:
+        echo_warning(line.strip())
+    echo("\n")
 
 # Main script logic
 if __name__ == "__main__":
@@ -118,59 +142,19 @@ if __name__ == "__main__":
         if last_error_index >= 0:
             echo(f"Custodian Error in {RED}{prev_file}{NC}: {ORANGE}{custodian_errors[last_error_index]}{NC}")
 
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            subprocess.run(['tar', '-xzf', prev_file, '-C', tmp_dir, 'INCAR'], check=True)
-            extracted_incar = os.path.join(tmp_dir, 'INCAR')
-
-            if not os.path.exists(extracted_incar):
-                echo_error(f"INCAR file not found in '{prev_file}'.")
-                sys.exit(1)
-
-            with open(incar_file, 'r') as incar, open(extracted_incar, 'r') as extracted:
-                incar_lines = sorted(incar.readlines())
-                extracted_lines = sorted(extracted.readlines())
-
-            unique_to_prev_file = set(extracted_lines) - set(incar_lines)
-            unique_to_current = set(incar_lines) - set(extracted_lines)
-
-            echo(f"Lines unique to {RED}{prev_file}{NC} INCAR file:")
-            for line in unique_to_prev_file:
-                echo_warning(line.strip())
-            echo("\n")
-
-            echo(f"Lines unique to the {CYAN}Current INCAR{NC} file:")
-            for line in unique_to_current:
-                echo_warning(line.strip())
-            echo("\n")
+        compare_incar_files(prev_file, incar_file)
 
     if len(error_files) == 1:
         first_error_file = error_files[0]
-        echo_warning(f"Here's what changed between {first_error_file} and the current INCAR file...")
+        echo(f"Here's what changed between {RED}{first_error_file}{NC} and the current {CYAN}INCAR{NC} file...")
+        echo(f"Custodian Error in {RED}{prev_file}{NC}: {ORANGE}{custodian_errors[0]}{NC}")
+        compare_incar_files(first_error_file, incar_file)
 
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            subprocess.run(['tar', '-xzf', first_error_file, '-C', tmp_dir, 'INCAR'], check=True)
-            extracted_incar = os.path.join(tmp_dir, 'INCAR')
-
-            if not os.path.exists(extracted_incar):
-                echo_error(f"INCAR file not found in '{first_error_file}'.")
-            else:
-                with open(incar_file, 'r') as incar, open(extracted_incar, 'r') as extracted:
-                    incar_lines = sorted(incar.readlines())
-                    extracted_lines = sorted(extracted.readlines())
-
-                unique_to_first_file = set(extracted_lines) - set(incar_lines)
-                unique_to_current = set(incar_lines) - set(extracted_lines)
-
-                echo(f"Lines unique to {RED}{first_error_file} INCAR file:")
-                for line in unique_to_first_file:
-                    echo_warning(line.strip())
-                echo("\n")
-
-                echo(f"Lines unique to the Current INCAR file:")
-                for line in unique_to_current:
-                    echo_warning(line.strip())
-                echo("\n")
-
+    # Comparison between the first error file and current INCAR file before deleting files
+    first_error_file = error_files[0]
+    echo(f"Here's what changed between {RED}{first_error_file}{NC} and the current {CYAN}INCAR file{NC} (before file deletion)...")
+    compare_incar_files(first_error_file, incar_file)
+    
     if incar_unzipped:
         os.remove(incar_file)
         echo_info(f"Deleted uncompressed '{incar_file}' as '{incar_gz_file}' existed originally.")
@@ -181,4 +165,3 @@ if __name__ == "__main__":
 
     echo("All comparisons complete. Best of luck o7")
     echo("\n\n")
-

@@ -6,7 +6,7 @@ when your high throughput codes just aren't (slurm edition)
 There are two separate functionalities in Sustodian: CheckIncar and FindMyFW. Both functionalities have parallel versions in Python and Shell Scripts. You can use either.
 
 ## Installation
-git clone this repo to any directory
+git clone this repo to any directory (it is quite slow so just be patient)
 
 
 ## Recommended Aliases in ./bashrc:

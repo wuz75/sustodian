@@ -36,14 +36,15 @@ def check_and_uncompress(file, gz_file, unzipped_var):
             echo_error(f"Neither '{file}' nor '{gz_file}' exist.")
             sys.exit(1)
 
-def compare_incar_files(file1, file2):
+def compare_incar_files(file1, file2, cwd):
+    INCAR=cwd[1:]+'/INCAR'
     if file1.endswith('.tar.gz') and file2.endswith('.tar.gz'):
         with tempfile.TemporaryDirectory() as tmp_dir1, tempfile.TemporaryDirectory() as tmp_dir2:
-            subprocess.run(['tar', '-xzf', file1, '-C', tmp_dir1, 'INCAR'], check=True)
-            subprocess.run(['tar', '-xzf', file2, '-C', tmp_dir2, 'INCAR'], check=True)
+            subprocess.run(['tar', '-xzf', file1, '-C', tmp_dir1, INCAR], check=True)
+            subprocess.run(['tar', '-xzf', file2, '-C', tmp_dir2, INCAR], check=True)
 
-            extracted_incar1 = os.path.join(tmp_dir1, 'INCAR')
-            extracted_incar2 = os.path.join(tmp_dir2, 'INCAR')
+            extracted_incar1 = os.path.join(tmp_dir1, INCAR)
+            extracted_incar2 = os.path.join(tmp_dir2, INCAR)
 
             if not os.path.exists(extracted_incar1):
                 echo_error(f"INCAR file not found in '{file1}'.")
@@ -65,8 +66,8 @@ def compare_incar_files(file1, file2):
                 echo_error(f"One file should be a .tar.gz file")
                 return
             
-            subprocess.run(['tar', '-xzf', tar_file, '-C', tmp_dir, 'INCAR'], check=True)
-            extracted_incar = os.path.join(tmp_dir, 'INCAR')
+            subprocess.run(['tar', '-xzf', tar_file, '-C', tmp_dir, INCAR], check=True)
+            extracted_incar = os.path.join(tmp_dir, INCAR)
 
             if not os.path.exists(extracted_incar):
                 echo_error(f"INCAR file not found in '{tar_file}'.")
@@ -94,6 +95,7 @@ def compare_incar_files(file1, file2):
 
 # Main script logic
 if __name__ == "__main__":
+    current_dir=os.getcwd()
     if len(sys.argv) != 2:
         echo_error("Usage: <script_name> <path to INCAR file>")
         sys.exit(1)
@@ -132,7 +134,7 @@ if __name__ == "__main__":
             if error_index < len(custodian_errors):
                 echo(f"Custodian error in {RED}{prev_file}{NC}: {ORANGE}{custodian_errors[error_index]}{NC}")
                 error_index += 1
-            compare_incar_files(prev_file, error_file)
+            compare_incar_files(prev_file, error_file, current_dir)
             echo_info("--------------------------------------")
         prev_file = error_file
 
@@ -142,7 +144,7 @@ if __name__ == "__main__":
         if last_error_index >= 0:
             echo(f"Custodian Error in {RED}{prev_file}{NC}: {ORANGE}{custodian_errors[last_error_index]}{NC}")
 
-        compare_incar_files(prev_file, incar_file)
+        compare_incar_files(prev_file, incar_file, current_dir)
 
     if len(error_files) == 1:
         first_error_file = error_files[0]
@@ -153,7 +155,7 @@ if __name__ == "__main__":
     # Comparison between the first error file and current INCAR file before deleting files
     first_error_file = error_files[0]
     echo(f"Here's what changed between {RED}{first_error_file}{NC} and the current {CYAN}INCAR file{NC} (before file deletion)...")
-    compare_incar_files(first_error_file, incar_file)
+    compare_incar_files(first_error_file, incar_file,current_dir)
     
     if incar_unzipped:
         os.remove(incar_file)

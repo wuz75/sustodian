@@ -14,15 +14,24 @@ authors = [
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+    "Operating System :: POSIX :: Linux",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Environment :: Console",
 ]
-dependencies = [
-    # Add dependencies here, e.g.,
-     "numpy",
-     "paramiko",
-]
+dependencies = []
 
 [project.urls]
 Homepage = "https://github.com/wuz75/sustodian"
 
+[project.scripts]
+checkincar = "sustodian.CheckIncar:main"
+sjob = "sustodian.FindMyFW:main"

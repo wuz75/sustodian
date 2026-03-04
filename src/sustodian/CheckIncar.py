@@ -24,17 +24,18 @@ def echo_info(message):
 def echo_warning(message):
     print(f"{ORANGE}{message}{NC}")
 
-def check_and_uncompress(file, gz_file, unzipped_var):
+def check_and_uncompress(file, gz_file):
     if not os.path.exists(file):
         if os.path.exists(gz_file):
             echo(f"File '{file}' does not exist.")
             echo(f"Found compressed file '{gz_file}'. Uncompressing...")
             with open(file, 'wb') as f_out:
                 subprocess.run(['gunzip', '-c', gz_file], stdout=f_out, check=True)
-            globals()[unzipped_var] = True
+            return True
         else:
             echo_error(f"Neither '{file}' nor '{gz_file}' exist.")
             sys.exit(1)
+    return False
 
 def extract_incar_from_tar(tar_file, tmp_dir):
     """
@@ -114,7 +115,7 @@ def compare_incar_files(file1, file2, cwd):
     echo("\n")
 
 
-if __name__ == "__main__":
+def main():
     current_dir = os.getcwd()
 
     if len(sys.argv) != 2:
@@ -126,16 +127,13 @@ if __name__ == "__main__":
     custodian_file = "custodian.json"
     custodian_gz_file = f"{custodian_file}.gz"
 
-    incar_unzipped = False
-    custodian_unzipped = False
-
     error_files = sorted(glob.glob('error.*.tar.gz'))
     if not error_files:
         echo_error("No error.number.tar.gz files found.")
         sys.exit(1)
 
-    check_and_uncompress(incar_file, incar_gz_file, 'incar_unzipped')
-    check_and_uncompress(custodian_file, custodian_gz_file, 'custodian_unzipped')
+    incar_unzipped = check_and_uncompress(incar_file, incar_gz_file)
+    custodian_unzipped = check_and_uncompress(custodian_file, custodian_gz_file)
     echo("\n\n")
 
     with open(custodian_file, 'r') as f:
@@ -180,3 +178,6 @@ if __name__ == "__main__":
 
     echo("All comparisons complete. Best of luck o7")
     echo("\n\n")
+
+if __name__ == "__main__":
+    main()

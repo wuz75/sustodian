@@ -1,0 +1,3 @@
+[console_scripts]
+checkincar = sustodian.CheckIncar:main
+sjob = sustodian.FindMyFW:main
